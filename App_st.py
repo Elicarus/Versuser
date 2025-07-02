@@ -474,8 +474,8 @@ def create_navigation_interface(matches, comparateur, comp_key, show_diff):
             
             .match-highlight {{
                 background-color: #5B9E56;
-                padding: 1px 2px;
-                border-radius: 1px;
+                padding: 1px 1px;
+                border-radius: 0.5px;
             }}
             
             .context-controls {{
