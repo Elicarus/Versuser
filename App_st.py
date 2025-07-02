@@ -443,8 +443,8 @@ def create_navigation_interface(matches, comparateur, comp_key, show_diff):
                 padding: 15px;
                 border-radius: 3px;
                 font-family: 'Times New Roman';
-                font-size: 22px;
-                line-height: 1.2em;
+                font-size: 15px;
+                line-height: 1em;
                 white-space: pre-wrap;
                 word-wrap: break-word;
                 max-height: 300px;
