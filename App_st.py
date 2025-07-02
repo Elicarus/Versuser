@@ -442,7 +442,7 @@ def create_navigation_interface(matches, comparateur, comp_key, show_diff):
                 color: #e0e0e0;
                 padding: 15px;
                 border-radius: 3px;
-                font-family: 'Courrier New';
+                font-family: 'Courier New';
                 font-size: 20px;
                 line-height: 1em;
                 white-space: pre-wrap;
