@@ -443,7 +443,7 @@ def create_navigation_interface(matches, comparateur, comp_key, show_diff):
                 padding: 15px;
                 border-radius: 3px;
                 font-family: 'Courier New';
-                font-size: 20px;
+                font-size: 15px;
                 line-height: 1em;
                 white-space: pre-wrap;
                 word-wrap: break-word;
