@@ -14,6 +14,7 @@ Interactions :
 -Reset text
 
 """
+
 import streamlit as st
 import streamlit.components.v1 as components
 from Corpus import Corpus
@@ -50,6 +51,8 @@ def main():
         st.session_state.filtered_corpus = None
     if 'comparateurs' not in st.session_state:
         st.session_state.comparateurs = dict()
+    if 'comp_outputs' not in st.session_state:
+        st.session_state.comp_outputs = dict()
     
     # Sidebar pour les paramètres globaux
     with st.sidebar:
@@ -218,7 +221,7 @@ def main():
     
                 # Sélection du document cible
                 st.subheader("2. Sélectionner le document cible")
-                available_targets = [name for name in current_corpus.get_documents_names()]
+                available_targets = [name for name in current_corpus.get_documents_names() if name != source_doc_name]
                 
                 target_doc_name = st.selectbox(
                     "Document cible",
@@ -241,6 +244,7 @@ def main():
 
                     if st.button("Créer une comparaison"):
                         st.session_state.comparateurs[comparison_key] = PairText(source_doc.text, target_doc.text)
+                        st.session_state.comp_outputs[comparison_key] = {'matches' : None, 'params' : None, 'html_output' : "Le résultat s'affichera ici."}
                         st.success(f"Comparaison créée: {source_doc_name} vs {target_doc_name}")
                         st.rerun()
         
@@ -256,283 +260,461 @@ def main():
                     st.subheader(f"Comparaison: {comp_key}")
                     
                     # Paramètres de comparaison
-                    size_choice, threshold_choice , diff_checkbox, stopword_checkbox, delete_comp = st.columns(5)
+                    size_choice, threshold_choice, stopword_checkbox, diff_checkbox, delete_comp  = st.columns(5)
                     
                     with size_choice:
                         n_size = st.slider("Taille des n-grams", 1, 10, 3, key=f"n_{comp_key}")
                     
                     with threshold_choice:
-                        threshold = st.slider("Seuil de similarité", 0.8, 1.0, 0.9, 0.01, key=f"threshold_{comp_key}")
-                    
+                        threshold = st.slider("Seuil de similarité", 0.8, 1.0, 0.93, 0.01, key=f"threshold_{comp_key}")
+
+                    with stopword_checkbox : 
+                        ignore_stopwords = st.checkbox("Supprimer les stopwords", key=f"stopwords_{comp_key}") 
+
                     with diff_checkbox:
                         show_diff = st.checkbox("Montrer les différences", key=f"diff_{comp_key}")
 
-                    with stopword_checkbox : 
-                        ignore_stopwords = st.checkbox("Supprimer les stopwords", key=f"stopwords{comp_key}") 
-
+                        #On actualise dynamiquement l'affichage pour montrer les différences
+                        if st.session_state.comp_outputs[comp_key]['matches'] is not None : 
+                            matches = st.session_state.comp_outputs[comp_key]['matches']
+                            st.session_state.comp_outputs[comp_key]['html_output'] = create_navigation_interface(matches, comparateur, comp_key, show_diff)
+                    
                     with delete_comp:
                         if st.button("Supprimer", key=f"remove_{comp_key}"):
                             del st.session_state.comparateurs[comp_key]
+                            del st.session_state.comp_outputs[comp_key]
                             st.rerun()
-                    
+
                     if st.button("Comparer", key=f"compare_{comp_key}"):
                         # Effectuer la comparaison
                         
                         if ignore_stopwords : 
                             with st.spinner("Suppression des mots vides", show_time=True) :
                                 comparateur.remove_stopwords_texts()
-                                print("LA")
+
                         else : 
                             comparateur.set_default_texts()
                         
-                        #
                         if threshold > 0.99 : 
                             threshold = 0.99
                         
-                        with st.spinner("Comparaison en cours...", show_time=True) :
-                            matches = comparateur.compare_n_grams(n=n_size, score_threshold=threshold, diff=show_diff)
-                        st.success(f"{len(matches)} correspondance(s) trouvée(s)!")
-                        
+                        current_params = (n_size, threshold, ignore_stopwords)
+
+                        #Si la comp_key n'est pas là ou bien si les paramètres ont changé, on relance la comparaison
+                        if st.session_state.comp_outputs[comp_key]['params'] != current_params  : 
+                            st.session_state.comp_outputs[comp_key]['params'] = current_params
+                            with st.spinner("Comparaison en cours...", show_time=True) :
+                                st.session_state.comp_outputs[comp_key]['matches'] = comparateur.compare_n_grams(n=n_size, score_threshold=threshold)
+
+                        matches = st.session_state.comp_outputs[comp_key]['matches']
+
                         navigation_html = create_navigation_interface(matches, comparateur, comp_key, show_diff)
-                        with open("navigation_output.html", 'w', encoding="utf-8") as f :
+                        st.session_state.comp_outputs[comp_key]['html_output'] = navigation_html
+
+                        with open("last_output.html", 'w', encoding="utf-8") as f :
                             f.write(navigation_html)
-                        #print(navigation_html)
-                        components.html(navigation_html, height=1000, scrolling=True)
-                        #st.markdown(navigation_html, unsafe_allow_html=True)
+                    
+                    components.html(st.session_state.comp_outputs[comp_key]['html_output'], height=1000, scrolling=True)
 
     with tab4 : 
         st.write("GUIDE : ")
         st.write("Pour éviter tout bug : ne pas mettre de titre contenant : des caractères spéciaux, des guillemets, des apostrophes")
 
-def highlight_text_with_navigation(text, text_id, similarities, differences = None) -> str:
-    """Ajoute la mise en surbrillance HTML au texte"""
-    similarities_coords = similarities
-    if not similarities_coords and not differences:
-        return f'<div id="{text_id}" style="height: 400px; overflow-y: auto; padding: 10px; border: 1px solid #ddd; white-space: pre-wrap; font-family: monospace;">{text}</div>'
 
-    starts = [c[0] for c in similarities_coords]
-    ends = [c[1] for c in similarities_coords]
-
-    #Plutôt que d'une liste des coordonnées, on veut le nombre de fois où chacune apparaît
-
-    color_sim = st.session_state.global_stuff.COLORS['sim']
-    color_diff = st.session_state.global_stuff.COLORS['diff']
+def create_navigation_interface(matches, comparateur, comp_key, show_diff):
+    """
+    Crée une interface HTML pour naviguer et comparer les passages similaires entre deux textes.
     
-    # Construire le texte avec les balises HTML
-    result = ""
-    last_pos = 0
-
-    #Trier les listes differences et similarities dans l'ordre d'apparition
-
-    for i, (start, end) in enumerate(similarities_coords):
-        # Ajouter le texte avant le surlignage
-
-        result += text[last_pos:start]
-
-        section = '' #La section de texte similaire
-        
-        if differences : #Si on doit afficher les différences
-            if len(differences[i])>0 : #S'il existe des différences à afficher
-                last_pos_diff = start
-                for diff_start, diff_end in differences[i] : 
-                    section += text[last_pos_diff:diff_start] #On ajoute le texte similaire normal
-                    section += f'<span style="color: {color_diff};">{text[diff_start:diff_end]}</span>' #Et le texte différé en couleur
-                    last_pos_diff = diff_end #Puis on incrémente
-                section += text[diff_end:end] #On termine ce qui reste du texte
-
-        else : 
-            section += text[start:end]
-
-        segment_idx = i
-        # Imbrique la section dans une span à id unique. Plusieurs spans si plusieurs endroits amènent ici.
-        
-        # Construction de span ids
-
-        section = f'<span id="{text_id}_segment_{segment_idx}" style="background-color: {color_sim}; cursor: pointer; border: 2px solid transparent;" onclick="navigateToSegment({segment_idx}, `{text_id}`)" onmouseover="this.style.border=\'2px solid #ff6600\'" onmouseout="this.style.border=\'2px solid transparent\'">{section}</span>'
-        result += section
-         
-        last_pos = end
+    Args:
+        matches: Liste de 4-uplets (pos1, pos2, diff1, diff2)
+        comparateur: Objet avec text1 et text2
+        comp_key: Clé unique pour cette comparaison
+        show_diff: Booléen pour afficher les différences
     
-    # Ajouter le reste du texte
-    result += text[last_pos:]
-    
-    # Entourer dans un div scrollable avec ID
-    return f'''
-<div id="{text_id}" style="background-color : #EBF3FC; height: 400px; overflow-y: auto; padding: 10px; border: 1px solid #ddd; white-space: pre-wrap; font-family: monospace; line-height: 1.5;">
-    {result}
-</div>
-    '''
-
-def create_navigation_interface(matches: list, comparateur: PairText, comp_key: str, show_diff: bool = False) -> str:
-    """Crée l'interface de navigation complète avec JavaScript"""
-    
-    # Préparer les données pour JavaScript
-    similarities1 = []
-    similarities2 = []
-    differences1 = []
-    differences2 = []
-    
-    text1_id = comp_key+"_"+comparateur.text1.name
-    text2_id = comp_key+"_"+comparateur.text2.name
-    print(text1_id)
-    if show_diff :
-        for sim1, sim2, diff1, diff2 in matches:
-            similarities1.append(sim1)
-            similarities2.append(sim2)
-            differences1.append(diff1)
-            differences2.append(diff2)
-    else  :
-         for sim1, sim2 in matches : 
-            similarities1.append(sim1)
-            similarities2.append(sim2)
-           
-    # Générer le HTML pour les deux textes
-    text1_html = highlight_text_with_navigation(
-        text=comparateur.text1.origin_content, 
-        text_id=text1_id,
-        similarities=similarities1, 
-        differences=differences1 if show_diff else None,
-    )
-    
-    text2_html = highlight_text_with_navigation(
-        text=comparateur.text2.origin_content, 
-        text_id=text2_id,
-        similarities=similarities2, 
-        differences=differences2 if show_diff else None,
-    )
-    
-    # JavaScript pour la navigation synchronisée
-    javascript = f"""
-<script>
-let currentSegment = 0;
-let totalSegments = {len(similarities1)};
-
-function navigateToSegment(segmentIndex, sourceTextId) {{
-    currentSegment = segmentIndex;
-    
-    // Identifier le texte cible
-    let targetTextId = sourceTextId === `{text1_id}` ? `{text2_id}` : `{text1_id}`;
-    
-    // Trouver les éléments source et cible
-    let sourceElement = document.getElementById(sourceTextId + '_segment_' + segmentIndex);
-    let targetElement = document.getElementById(targetTextId + '_segment_' + segmentIndex);
-    
-    if (sourceElement && targetElement) {{
-        // Mettre en évidence les segments actifs
-        highlightActiveSegments(segmentIndex);
-        
-        // Faire défiler les deux textes
-        scrollToElement(sourceTextId, sourceElement);
-        scrollToElement(targetTextId, targetElement);
-        
-        // Mettre à jour l'indicateur de navigation
-        updateNavigationIndicator();
-    }}
-}}
-
-function scrollToElement(containerId, element) {{
-    let container = document.getElementById(containerId);
-    if (container && element) {{
-        let containerRect = container.getBoundingClientRect();
-        let elementRect = element.getBoundingClientRect();
-        let relativeTop = element.offsetTop - container.offsetTop;
-        container.scrollTop = relativeTop - container.clientHeight / 2;
-    }}
-}}
-
-function highlightActiveSegments(segmentIndex) {{
-    // Retirer les anciens surlignages actifs
-    document.querySelectorAll('.active-segment').forEach(el => {{
-        el.classList.remove('active-segment');
-        el.style.border = '2px solid transparent';
-    }});
-    
-    // Ajouter le nouveau surlignage
-    let element1 = document.getElementById(`{text1_id}_segment_` + segmentIndex);
-    let element2 = document.getElementById(`{text2_id}_segment_` + segmentIndex);
-    
-    if (element1) {{
-        element1.classList.add('active-segment');
-        element1.style.border = '3px solid #ff0000';
-    }}
-    if (element2) {{
-        element2.classList.add('active-segment');
-        element2.style.border = '3px solid #ff0000';
-    }}
-}}
-
-function nextSegment() {{
-    if (currentSegment < totalSegments - 1) {{
-        navigateToSegment(currentSegment + 1, `{text1_id}`);
-    }}
-}}
-
-function prevSegment() {{
-    if (currentSegment > 0) {{
-        navigateToSegment(currentSegment - 1, `{text1_id}`);
-    }}
-}}
-
-function updateNavigationIndicator() {{
-    let indicator = document.getElementById('nav-indicator');
-    if (indicator) {{
-        indicator.innerHTML = `Segment ${{currentSegment + 1}} / ${{totalSegments}}`;
-    }}
-}}
-
-// Navigation au clavier
-document.addEventListener('keydown', function(e) {{
-    if (e.key === 'ArrowRight' || e.key === 'n') {{
-        nextSegment();
-    }} else if (e.key === 'ArrowLeft' || e.key === 'p') {{
-        prevSegment();
-    }}
-}});
-
-// Initialiser le premier segment
-setTimeout(() => {{
-    if (totalSegments > 0) {{
-        navigateToSegment(0, `{text1_id}`);
-    }}
-}}, 100);
-</script>
+    Returns:
+        str: Code HTML de l'interface de navigation
     """
     
-    # Interface complète avec contrôles de navigation
-    navigation_controls = f"""
-<div style="text-align: center; margin: 10px 0; padding: 10px; background-color: #EBF3FC; border-radius: 5px;">
-    <button onclick="prevSegment()" style="margin: 0 5px; padding: 5px 15px; background-color: black; color: white; border: none; border-radius: 3px; cursor: pointer;">← Précédent</button>
-    <span id="nav-indicator" style="color : black; margin: 0 15px; font-weight: bold;">Segment 1 / {len(similarities1)}</span>
-    <button onclick="nextSegment()" style="margin: 0 5px; padding: 5px 15px; background-color: black; color: white; border: none; border-radius: 3px; cursor: pointer;">Suivant →</button>
-</div>
-<div style="font-size: 20px; color: white; text-align: center; margin-bottom: 10px;">
-    Cliquez sur un segment surligné pour naviguer | Utilisez les flèches du clavier ou N/P
-</div>
+    context_size = st.session_state.global_stuff.INITIAL_CONTEXT_SIZE
+    delta_size = st.session_state.global_stuff.DELTA_CONTEXT_SIZE
+    
+
+
+    # Début du HTML
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Comparaison de textes - {comp_key}</title>
+        <style>
+            body {{
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background-color: #1a1a1a;
+                color: #e0e0e0;
+                line-height: 1.6;
+            }}
+            
+            .header {{
+                background: #2d2d2d;
+                color: #f0f0f0;
+                padding: 20px;
+                border-radius: 4px;
+                margin-bottom: 20px;
+                text-align: center;
+                border: 1px solid #404040;
+            }}
+            
+            .header h1 {{
+                margin: 0;
+                font-size: 24px;
+                color: #ffffff;
+            }}
+            
+            .stats {{
+                background: #2d2d2d;
+                color: #cccccc;
+                padding: 15px;
+                border-radius: 4px;
+                margin-bottom: 20px;
+                border: 1px solid #404040;
+                text-align: center;
+            }}
+            
+            .match-container {{
+                background: #2d2d2d;
+                border-radius: 4px;
+                margin-bottom: 20px;
+                border: 1px solid #404040;
+                overflow: hidden;
+                transition: all 0.2s ease;
+            }}
+            
+            .match-container:hover {{
+                border-color: #555555;
+                transform: translateY(-1px);
+            }}
+            
+            .match-header {{
+                background: #404040;
+                color: #f0f0f0;
+                padding: 15px 20px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: background 0.2s ease;
+                border-bottom: 1px solid #555555;
+            }}
+            
+            .match-header:hover {{
+                background: #4a4a4a;
+            }}
+            
+            .match-content {{
+                display: flex;
+                min-height: 200px;
+            }}
+            
+            .text-panel {{
+                flex: 1;
+                padding: 20px;
+                border-right: 1px solid #404040;
+                position: relative;
+                background: #252525;
+            }}
+            
+            .text-panel:last-child {{
+                border-right: none;
+            }}
+            
+            .text-panel h3 {{
+                margin: 0 0 15px 0;
+                color: #cccccc;
+                font-size: 16px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #555555;
+            }}
+            
+            .text-content {{
+                background: #1e1e1e;
+                color: #e0e0e0;
+                padding: 15px;
+                border-radius: 3px;
+                font-family: 'Times New Roman';
+                font-size: 22px;
+                line-height: 1.2em;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                max-height: 300px;
+                overflow-y: auto;
+                border: 1px solid #404040;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }}
+            
+            .text-content:hover {{
+                background: #262626;
+                border-color: #666666;
+            }}
+            
+            .text-content.expanded {{
+                max-height: none;
+                background: #1a1a1a;
+                border-color: #777777;
+            }}
+            
+            .diff-color {{
+                color: {st.session_state.global_stuff.COLORS['diff']};
+                padding: 1px 2px;
+                border-radius: 2px;
+                font-weight: bold;
+            }}
+            
+            .match-highlight {{
+                background-color: #5B9E56;
+                padding: 1px 2px;
+                border-radius: 1px;
+            }}
+            
+            .context-controls {{
+                margin: 10px 0;
+                text-align: center;
+            }}
+            
+            .context-btn {{
+                background: #404040;
+                color: #e0e0e0;
+                border: 1px solid #555555;
+                padding: 8px 16px;
+                margin: 0 3px;
+                border-radius: 3px;
+                cursor: pointer;
+                font-size: 12px;
+                transition: all 0.2s ease;
+            }}
+            
+            .context-btn:hover {{
+                background: #4a4a4a;
+                border-color: #666666;
+            }}
+            
+            .context-btn:disabled {{
+                background: #333333;
+                color: #666666;
+                cursor: not-allowed;
+                border-color: #333333;
+            }}
+            
+            .navigation {{
+                position: sticky;
+                top: 20px;
+                background: #2d2d2d;
+                padding: 15px;
+                border-radius: 4px;
+                border: 1px solid #404040;
+                margin-bottom: 20px;
+                text-align: center;
+            }}
+            
+            .nav-btn {{
+                background: #404040;
+                color: #e0e0e0;
+                border: 1px solid #555555;
+                padding: 10px 20px;
+                margin: 0 5px;
+                border-radius: 3px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }}
+            
+            .nav-btn:hover {{
+                background: #4a4a4a;
+                border-color: #666666;
+            }}
+            
+            .scrollbar-custom::-webkit-scrollbar {{
+                width: 8px;
+            }}
+            
+            .scrollbar-custom::-webkit-scrollbar-track {{
+                background: #2d2d2d;
+                border-radius: 2px;
+            }}
+            
+            .scrollbar-custom::-webkit-scrollbar-thumb {{
+                background: #555555;
+                border-radius: 2px;
+            }}
+            
+            .scrollbar-custom::-webkit-scrollbar-thumb:hover {{
+                background: #666666;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🔍 Comparaison de Textes</h1>
+            <p>{comp_key}</p>
+        </div>
+        
+        <div class="stats">
+            <strong>{len(matches)} correspondance(s) trouvée(s)</strong>
+            {' | Différences mises en évidence' if show_diff else ''}
+        </div>
+        
+        <div class="navigation">
+            <button class="nav-btn" onclick="expandAll()">Tout Étendre</button>
+            <button class="nav-btn" onclick="resetAll()">Tout Reset</button>
+            <button class="nav-btn" onclick="collapseAll()">Tout Réduire</button>
+        </div>
     """
     
-    # Layout en colonnes
-    layout = f"""
-<div style="display: flex; gap: 20px;">
-    <div style="flex: 1;">
-        <h4 style="text-align: center; margin-bottom: 10px; color:white;">{comparateur.text1.name}</h4>
-        {text1_html}
-    </div>
-    <div style="flex: 1;">
-        <h4 style="text-align: center; margin-bottom: 10px; color:white;">{comparateur.text2.name}</h4>
-        {text2_html}
-    </div>
-</div>
-    """
+    # Générer chaque correspondance
+    for i, match in enumerate(matches):
+        # Gérer le cas où matches peut être des 2-uplets ou 4-uplets
+        if len(match) == 2:
+            pos1, pos2 = match
+            diff1, diff2 = None, None
+        else:
+            pos1, pos2, diff1, diff2 = match
+        
+        # Extraire les textes correspondants
+        # Calculer un score de similarité approximatif
+        
+        html += f"""
+        <div class="match-container" id="match-{i}">
+            <div class="match-header" onclick="toggleMatch({i})">
+                Correspondance #{i+1}
+                <div class="context-controls">
+                    <button class="context-btn" onclick="changeContext({i}, -{delta_size})">Réduire le contexte</button>
+                    <button class="context-btn" onclick="resetContext({i})">Reset le contexte</button>
+                    <button class="context-btn" onclick="changeContext({i}, {delta_size})">Aggrandir le contexte</button>
+                </div>
+            </div>
+            
+            <div class="match-content" id="content-{i}">
+
+                <div class="text-panel">
+                    <h3>{comparateur.text1.name} (Position: {pos1[0]}-{pos1[1]})</h3>
+                    <div class="text-content scrollbar-custom" id="text1-{i}" onclick="toggleExpand('text1-{i}')">
+                    </div>
+                </div>
+                
+                <div class="text-panel">
+                    <h3>{comparateur.text2.name} (Position: {pos2[0]}-{pos2[1]})</h3>
+                    <div class="text-content scrollbar-custom" id="text2-{i}" onclick="toggleExpand('text2-{i}')">
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
     
-    # Légende
-    legend = f"""
-    <div style="margin-top: 15px; padding: 10px; background-color: #f9f9f9; border-radius: 5px;">
-        <br>- <span style="background-color: {st.session_state.global_stuff.COLORS['sim']}; padding: 2px 4px;">Texte surligné</span>: Passages similaires (cliquez pour naviguer)<br>
-        <br>- <span style="color: {st.session_state.global_stuff.COLORS['diff']}; padding: 2px 4px;">Texte surligné</span>: Différences (si activées)<br>
-        <br>- <span style="border: 3px solid {st.session_state.global_stuff.COLORS['sim_border']}; padding: 2px 4px;">Bordure rouge</span>: Segment actuellement sélectionné<br>
-    </div>
-    """
+    # JavaScript pour l'interactivité
+    html += f"""
+    </body>
+        <script>
+// Données des textes pour le contexte dynamique
+const text1 = `{repr(comparateur.text1)}`;
+const text2 = `{repr(comparateur.text2)}`;
+const matches = {str(matches).replace('(', '[').replace(')', ']')}; //Jeu dangereux : la ressemblance de syntaxe entre python et javascript : on bricole
+const showDiff = {str(show_diff).lower()};
+// Stockage des contextes actuels
+let contexts_size = [];
+
+// Initialiser les contextes
+for (let i = 0; i < matches.length; i++) {{
+    contexts_size[i] = {context_size}
+}}
+
+function escapeHtml(text) {{
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}}
+
+function highlightTextWithDifferences(text, context_size, position, diffCoords) {{
+    let start = position[0];
+    let end = position[1];
     
-    return """<div style="font-family: 'Source Sans Pro', sans-serif;">"""+navigation_controls + layout + legend + javascript+'</div>'
+    let prefix = text.substring(start-context_size,start)
+
+    let inner = '<span class="match-highlight">';
+    
+    if (showDiff && diffCoords && diffCoords.length !== 0) {{
+        // Trier les coordonnées
+        diffCoords.sort((a, b) => a[0] - b[0]);
+    
+        let lastEnd = start;
+        for (const [start_diff, end_diff] of diffCoords) {{
+            inner += escapeHtml(text.substring(lastEnd, start_diff));
+            
+            const diffText = escapeHtml(text.substring(start_diff, end_diff));
+            inner += `<span class="diff-color">${{diffText}}</span>`;
+            
+            lastEnd = end_diff;
+        }}
+
+        inner += escapeHtml(text.substring(lastEnd, end));
+    }}
+    else {{
+        inner += escapeHtml(text.substring(start,end))
+    }}
+
+    inner += '</span>';
+    let suffix = text.substring(end,end+context_size)
+    let total = prefix + inner + suffix
+    return total
+}}
+
+function updateTextContent(matchIndex) {{
+    const match = matches[matchIndex];
+    let [pos1, pos2, diff1, diff2] = [match[0], match[1], match[2], match[3]]
+
+    let element = document.getElementById(`text1-${{matchIndex}}`);
+    element.innerHTML = highlightTextWithDifferences(text1, contexts_size[matchIndex], pos1, diff1);
+    
+    element = document.getElementById(`text2-${{matchIndex}}`);
+    element.innerHTML = highlightTextWithDifferences(text2, contexts_size[matchIndex], pos2, diff2);
+}}
+
+//On met immédiatement les premiers 
+for (let i = 0; i<matches.length; i++){{
+    updateTextContent(i);
+}}
+
+function changeContext(matchIndex, delta) {{
+    contexts_size[matchIndex] = Math.max({context_size}, contexts_size[matchIndex] += delta);
+    updateTextContent(matchIndex);
+}}
+
+function resetContext(matchIndex) {{
+    contexts_size[matchIndex] = {context_size};
+    updateTextContent(matchIndex);
+}}
+
+function collapseAll() {{
+    for (let i = 0; i<matches.length; i++) {{
+        changeContext(i, -default_delta)
+    }}  
+}}
+
+function expandAll() {{
+    for (let i = 0; i<matches.length; i++) {{
+        changeContext(i, default_delta)
+    }}
+}}
+
+function resetAll() {{
+    for (let i = 0; i<matches.length; i++) {{
+        resetContext(i)
+    }}
+}}
+
+        </script>
+    </html>
+    """
+    return html
 
 main()

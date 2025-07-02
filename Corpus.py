@@ -6,6 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
+
 class Corpus : 
     """A l'échelle du corpus"""
     def __init__(self, path : str = None) :
@@ -19,7 +20,8 @@ class Corpus :
 
         else : 
             self.documents = []
-
+        
+        self.tf_idf_updated = TfidfVectorizer()
 
     ###!!UTILITY ET CORPUS MANAGEMENT
     def add_doc(self, document : Document) : 
@@ -101,13 +103,14 @@ class Corpus :
     ###!!COMPARAISON ET VECTORISATION : 
 
     def vectorize_corpus(self, model) :
-
-        corpus_matrix = np.array([doc.vectorize_document(model) for doc in self.documents])
+        
+        corpus_matrix = np.array([doc.vectorize_document(model, self.tf_idf_updated) for doc in self.documents])
         
         return corpus_matrix
 
     def compare(self, source : Document, model=SentenceTransformer(Global_stuff.MODEL_NAME), n=0, inplace=True) : 
-        
+        self.tf_idf_updated.fit([d.text.origin_content for d in self.documents])
+
         if n<=0 or n> len(self) :
             n = len(self)
 

@@ -2,7 +2,6 @@
 import numpy as np
 from Text import Text
 import chardet
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 class Document : 
     """A l'échelle d'un document : sa vectorisation, comparaison, et son contenu"""
@@ -17,7 +16,7 @@ class Document :
         elif content : 
             self.text = Text(self.name, content)
 
-    def vectorize_document(self, model, mode="hybrid") :
+    def vectorize_document(self, model, vectorizerTfIdf) :
         if self.vectorized is None : 
             
             #Init
@@ -35,19 +34,19 @@ class Document :
                     t.sentences[i].vectorized = self.vector_sentences[i]
             
             #On crée un tf.idf pour la vectorisation hybride
-            v = TfidfVectorizer()
+            
             
             #Idée : On renforce les phrases qui contiennent des mots que les autres phrases ne contiennent pas, car ce sont elles qui caractérisent le document
 
             #On regarde le poids qu'occupe la phrase dans ce document
-            tf_idf = v.fit_transform(sentences_content)
+            tf_idf = vectorizerTfIdf.transform(sentences_content)
             weights = np.sum(tf_idf, axis=1) #Le poids total des occurences des mots de chaque phrase, c'est à dire à quel point elles sont présente dans le texte
             weights = list(map(lambda x : float(x), weights))
             lengths_weights = np.array([weights[i]/len(sentences_content[i].split(" ")) for i in range(t.n_sentences)]) #On divise le poids par le nombre de mots pour normaliser
             
             self.vectorized = np.mean(self.vector_sentences * lengths_weights[:, np.newaxis], axis=0) #On pondère chaque vecteur par son score
 
-            print(f"Document {self.name} traité en {mode}")
+            print(f"Document {self.name} traité en hybride")
         
         return self.vectorized
 """    

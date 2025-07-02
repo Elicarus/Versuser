@@ -6,6 +6,8 @@ from textdistance import hamming
 import rapidfuzz
 from rapidfuzz import fuzz
 
+from copy import deepcopy
+
 from difflib import SequenceMatcher
 
 from scipy.sparse import coo_array, vstack
@@ -50,7 +52,7 @@ class PairText :
 
         return csv_text
 
-    def compare_n_grams(self, n=3, score_threshold=0.9, diff=False) :
+    def compare_n_grams(self, n=3, score_threshold=0.9, diff=True) :
         """Comparaison  par défaut des paires de n_grams, """ 
         
         result = self.compare_ngrams_model(n=n, score_threshold=score_threshold)
@@ -73,6 +75,11 @@ class PairText :
                     if action != 'equal' : 
                         result[i][2].append((s_1 + i1, s_1 + i2)) #On les met à leur place dans le vrai texte
                         result[i][3].append((s_2 + j1, s_2 + j2))
+        else : 
+            for i, pair in enumerate(result) :
+                result[i] = (pair[0], pair[1], [], [])
+        
+        print(result)
         return result
 
     def remove_stopwords_texts(self) : 

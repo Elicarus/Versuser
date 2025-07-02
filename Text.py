@@ -2,7 +2,7 @@ from Global_stuff import *
 
 from Chunks import Sentence, Word
 from math import ceil
-
+import numpy as np
 from re import search
 from itertools import accumulate
 
@@ -31,13 +31,14 @@ class Text :
         if isinstance(c, tuple) : 
             a,b = c[0], c[1]
             return self.origin_content.replace("\n", " ")[a:b]
-        return None
+        raise TypeError("Please get with a couple")
 
+    def __repr__(self):
+        return self.origin_content
 
     def default(self) : 
         """Réinitialise le contenu."""
         self.content = self.origin_content
-        self.stopworded = False
         matches = list(re.finditer(r'\b\w+\b', self.origin_content))
         self.words = [Word(match.start(), match.end(), match.group()) for match in matches]
         self.update_sentences()
@@ -50,16 +51,18 @@ class Text :
         return [self.words[i:i+n] for i in range(len(self.words)-n+1)]
 
     def remove_stopwords(self) :
-        print('removing stopwords for ', self.name)
-        if not self.stopworded : 
-            stopwords = Global_stuff.STOPWORDS
-
-            #On actualise la liste de mots pour ne garder que les bons
-            self.words = [word for word in self.words if word.content.lower() not in stopwords]
-            self.content = (" ".join([w.content for w in self.words])).strip()
-            
-            self.update_sentences()
-            self.stopworded = True
+        print('removing stopwords for ', self.name) 
+        stopwords = Global_stuff.STOPWORDS
+        word_contents = [word.content for word in self.words]
+        print("done content")
+        temp = [i for i,w in enumerate(word_contents) if w not in stopwords]
+        print("done filter")
+        self.words = list(np.array(self.words)[temp])
+        print("done recup")
+        #On actualise la liste de mots pour ne garder que les bons
+        #self.words = [word for word in self.words if word.content not in stopwords]
+        self.content = (" ".join([w.content for w in self.words])).strip()
+        print("done dada")
         print('stopwords removed for ', self.name)
         return self
 
@@ -91,7 +94,7 @@ class Text :
             return windows_matrix, sentences_windows
     
     def find_words(self, regex) :
-        matches = re.finditer(regex, self.content)
+        matches = re.finditer(regex, self.origin_content)
         return [(m.start(), m.end()) for m in matches]        
 
     def update_sentences(self) : 

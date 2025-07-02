@@ -26,13 +26,14 @@ class Global_stuff :
     try :
         STOPWORDS = set([word.strip() for word in open("stopwords.txt", 'r', encoding='utf-8').readlines()])
     except FileNotFoundError : 
-        STOPWORDS = set(nltk.corpus.stopwords.words(LANGUAGE))
+        STOPWORDS = nltk.corpus.stopwords.words(LANGUAGE)
 
     COLORS = {
-        'sim' : '#277B21',
-        'diff' : '#db0d0d',
-        'text_box' : '#EBF3FC',
-        'sim_border' : '#ff0000'}
+        'sim' : "#3BC531",
+        'diff' : '#ff0000'}
+    
+    INITIAL_CONTEXT_SIZE = 50
+    DELTA_CONTEXT_SIZE = 100
 
     
 
