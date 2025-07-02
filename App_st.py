@@ -444,7 +444,7 @@ def create_navigation_interface(matches, comparateur, comp_key, show_diff):
                 border-radius: 3px;
                 font-family: 'Courier New';
                 font-size: 15px;
-                line-height: 1em;
+                line-height: 1.3em;
                 white-space: pre-wrap;
                 word-wrap: break-word;
                 max-height: 300px;
