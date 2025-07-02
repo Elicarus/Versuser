@@ -266,7 +266,7 @@ def main():
                         n_size = st.slider("Taille des n-grams", 1, 10, 3, key=f"n_{comp_key}")
                     
                     with threshold_choice:
-                        threshold = st.slider("Seuil de similarité", 0.8, 1.0, 0.93, 0.01, key=f"threshold_{comp_key}")
+                        threshold = st.slider("Seuil de similarité", 0.9, 1.0, 0.93, 0.01, key=f"threshold_{comp_key}")
 
                     with stopword_checkbox : 
                         ignore_stopwords = st.checkbox("Supprimer les stopwords", key=f"stopwords_{comp_key}") 
@@ -442,8 +442,8 @@ def create_navigation_interface(matches, comparateur, comp_key, show_diff):
                 color: #e0e0e0;
                 padding: 15px;
                 border-radius: 3px;
-                font-family: 'Times New Roman';
-                font-size: 15px;
+                font-family: 'Courrier New';
+                font-size: 20px;
                 line-height: 1em;
                 white-space: pre-wrap;
                 word-wrap: break-word;
