@@ -1,11 +1,6 @@
 import numpy as np
 from Global_stuff import *
 
-from textdistance import hamming
-
-import rapidfuzz
-from rapidfuzz import fuzz
-
 from copy import deepcopy
 
 from difflib import SequenceMatcher
