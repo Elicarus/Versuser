@@ -37,7 +37,7 @@ if 'global_stuff' not in st.session_state :
 
 @st.cache_resource
 def load_model() : 
-    return SentenceTransformer(st.session_state.global_stuff['MODEL_NAME'])
+    return SentenceTransformer(st.session_state.global_stuff.MODEL_NAME)
 
 
 #Front-end complètement assisté par LLM parce que parlons franchement je savais pas comment on fait ça
