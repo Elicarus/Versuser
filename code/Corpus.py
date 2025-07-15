@@ -136,10 +136,11 @@ class Corpus :
             self.documents = sorted_corpus.documents
 
 
-        self.project(model)
+        #self.project(model)
 
         return sorted_corpus
 
+    #Optional, created for research purposes
     def project(self, model) :
         
         corpus_matrix = self.vectorize_corpus(model)
