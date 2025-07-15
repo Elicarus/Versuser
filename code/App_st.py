@@ -62,7 +62,7 @@ def main():
     
     # Sidebar pour les paramètres globaux
     with st.sidebar:
-        st.image("code/VERSUSLOGO.png, width=150)
+        st.image("code/VERSUSLOGO.png", width=150)
         st.header("⚙️ Paramètres globaux")
         
         # Stopwords personnalisés
