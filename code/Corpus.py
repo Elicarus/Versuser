@@ -48,13 +48,6 @@ class Corpus :
     def __len__(self) : 
         return len(self.documents)
 
-    def __add__(self, corpus_2) : 
-        corpus_sum = Corpus()
-
-        corpus_sum.documents = self.documents + [d for d in corpus_2.documents if d.name not in self.get_documents_names()]
-        
-        return corpus_sum
-
     def __sub__(self, document, inplace = False) :
         """Renvoie le corpus sans le document, s'il y est"""
         
