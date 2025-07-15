@@ -17,7 +17,7 @@ class Document :
             self.text = Text(self.name, content)
 
     def vectorize_document(self, model, vectorizerTfIdf) :
-        print(id(vectorizerTfIdf))
+        print("ICI :", id(vectorizerTfIdf))
         if self.vectorized is None : 
             
             #Init
