@@ -102,14 +102,14 @@ class Corpus :
     ###!!COMPARAISON ET VECTORISATION : 
 
     def vectorize_corpus(self, model) :
-        
+        print(id(self.tf_idf.updated))
         corpus_matrix = np.array([doc.vectorize_document(model, self.tf_idf_updated) for doc in self.documents])
         
         return corpus_matrix
 
     def compare(self, source : Document, model=SentenceTransformer(Global_stuff.MODEL_NAME), n=0, inplace=True) : 
         self.tf_idf_updated.fit([d.text.origin_content for d in self.documents])
-
+        print("\n--->Vectorizer for corpus fitted\n")
         if n<=0 or n> len(self) :
             n = len(self)
 
