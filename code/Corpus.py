@@ -20,8 +20,6 @@ class Corpus :
 
         else : 
             self.documents = []
-        self.tf_idf_updated = TfidfVectorizer()
-        print("création : ", id(self.tf_idf_updated))
     ###!!UTILITY ET CORPUS MANAGEMENT
     def add_doc(self, document : Document) : 
         if self.index(document) == -1 :
@@ -92,23 +90,23 @@ class Corpus :
   
     ###!!COMPARAISON ET VECTORISATION : 
 
-    def vectorize_corpus(self, model) :
-        print("on va l'envoyer")
-        print("envoi :", id(self.tf_idf_updated))
-        corpus_matrix = np.array([doc.vectorize_document(model, self.tf_idf_updated) for doc in self.documents])
+    def vectorize_corpus(self, model, vectorizer) :
+        corpus_matrix = np.array([doc.vectorize_document(model, vectorizer) for doc in self.documents])
         
         return corpus_matrix
 
     def compare(self, source : Document, model=SentenceTransformer(Global_stuff.MODEL_NAME), n=0, inplace=True) : 
-        self.tf_idf_updated.fit([d.text.origin_content for d in self.documents])
-        print("\n--->Vectorizer for corpus fitted\n")
-        print("là:", id(self.tf_idf_updated))
+        
         if n<=0 or n> len(self) :
             n = len(self)
 
         #On copie le corpus au cas où le document ne se trouveraient pas dedans
         corpus = self.copy()
-
+        
+        #On crée le vectorizer tf idf associé à la comparaison actuelle
+        vectorizer = TfidfVectorizer()
+        vectorizer.fit([d.text.origin_content for d in self.documents])
+        
         if isinstance(source, int) : 
             index = source
 
@@ -118,7 +116,7 @@ class Corpus :
                 corpus.add_doc(source)
 
         #On récupère la vectorisation (une matrice)
-        corpus_matrix = corpus.vectorize_corpus(model)
+        corpus_matrix = corpus.vectorize_corpus(model, vectorizer)
 
         #On compare le cosinus du vecteur source au reste de la matrice
         source_vector = corpus_matrix[index].copy()
