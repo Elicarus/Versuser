@@ -102,7 +102,7 @@ class Corpus :
     ###!!COMPARAISON ET VECTORISATION : 
 
     def vectorize_corpus(self, model) :
-        print(id(self.tf_idf.updated))
+        print(id(self.tf_idf_updated))
         corpus_matrix = np.array([doc.vectorize_document(model, self.tf_idf_updated) for doc in self.documents])
         
         return corpus_matrix
