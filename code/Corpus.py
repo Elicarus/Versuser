@@ -85,15 +85,6 @@ class Corpus :
         corpus = Corpus()
         #Le nombre d'occurence de la query dans les documents
         score = [len(d.text.find_words(query)) for d in self.documents]
-        #classement = np.flip(np.argsort(score))
-
-        #On le récupère dans l'ordre de la query la plus à la moins présente
-        #new_docs = []
-        #for c in classement : 
-            #On s'arrête au premier document qui ne contient plus la query
-        #    if score[c] == 0 : 
-        #        break;
-        #    new_docs.append(self.documents[c])
 
         corpus.documents = [self.documents[i] for i in range(len(self)) if score[i]>0]
 
@@ -103,7 +94,7 @@ class Corpus :
 
     def vectorize_corpus(self, model) :
         print("on va l'envoyer")
-        print(id(self.tf_idf_updated))
+        print("envoi :", id(self.tf_idf_updated))
         corpus_matrix = np.array([doc.vectorize_document(model, self.tf_idf_updated) for doc in self.documents])
         
         return corpus_matrix
@@ -111,7 +102,7 @@ class Corpus :
     def compare(self, source : Document, model=SentenceTransformer(Global_stuff.MODEL_NAME), n=0, inplace=True) : 
         self.tf_idf_updated.fit([d.text.origin_content for d in self.documents])
         print("\n--->Vectorizer for corpus fitted\n")
-        print(id(self.tf_idf_updated))
+        print("là:", id(self.tf_idf_updated))
         if n<=0 or n> len(self) :
             n = len(self)
 
