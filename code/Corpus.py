@@ -29,7 +29,14 @@ class Corpus :
             return f"Document {document.name} ajouté"
         else : 
             return f"Impossible d'ajouter \"{document.name}\", un document du même nom est déjà présent dans le corpus"
+    
+    def __add__(self, corpus_2) : 
+        corpus_sum = Corpus()
 
+        corpus_sum.documents = self.documents + [d for d in corpus_2.documents if d.name not in self.get_documents_names()]
+        
+        return corpus_sum
+    
     def get_doc_by_name(self, name) : 
         return self.documents[self.get_documents_names().index(name)]
     
