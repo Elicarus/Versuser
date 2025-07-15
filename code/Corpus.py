@@ -21,7 +21,7 @@ class Corpus :
         else : 
             self.documents = []
         self.tf_idf_updated = TfidfVectorizer()
-        print(id(self.tf_idf_updated))
+        print("création : ", id(self.tf_idf_updated))
     ###!!UTILITY ET CORPUS MANAGEMENT
     def add_doc(self, document : Document) : 
         if self.index(document) == -1 :
