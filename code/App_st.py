@@ -107,19 +107,7 @@ def main():
                         st.info(res)
                         sleep(0.5)
                     st.rerun()
-            
-            # Ajout manuel
-            st.subheader("Ajouter un document manuellement")
-            doc_name = st.text_input("Nom du document")
-            doc_content = st.text_area("Contenu du document", height=150)
-            
-            if st.button("Ajouter le document") and doc_name and doc_content:
-                doc = Document(name=doc_name, content=doc_content)
-                res = st.session_state.corpus.add_doc(doc)
-                st.info(res)
-                sleep(0.5)
-                st.rerun()
-        
+                    
         with col2:
             # Informations sur le corpus
             st.subheader("Informations du corpus")
