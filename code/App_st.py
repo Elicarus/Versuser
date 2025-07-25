@@ -100,7 +100,7 @@ def main():
             )
             
             if uploaded_files :
-                if st.button("Ajouter les fichiers uploadés") :
+                if st.button("Traiter les fichiers uploadés") :
                     for uploaded_file in uploaded_files :
                         doc = Document(name=uploaded_file.name, file_value=uploaded_file.getvalue())
                         res = st.session_state.corpus.add_doc(doc)
